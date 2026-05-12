@@ -12,6 +12,12 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.rn1",
+      "config": {
+        "googleMaps": {
+          "apiKey": "abcdefghijklmnopqrstuvwxyz1234567890"
+        }
+      },
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -43,6 +49,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "57f6387a-c07c-455a-8149-377e7bd3ceb2"
+      }
     }
   }
 }
