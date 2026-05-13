@@ -1,16 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import * as Location from "expo-location";
-/*
-interface LocationCoords {
-  altitude: number | null;
-  heading: number | null;
-  altitudeAccuracy: number | null;
-  latitude: number | null;
-  speed: number | null;
-  longitude: number | null;
-  accuracy: number | null;
-}
-*/
+
 interface LocationsObject {
   timestamp: number;
   mocked?: boolean;
@@ -83,9 +73,9 @@ const formatTimeSinceLastUpdate = (milliseconds: number) => {
   };
 };
 
-//const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
-const FIFTEEN_MINUTES_MS = 1 * 60 * 1000;
-const useMaps = () => {
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
+//const FIFTEEN_MINUTES_MS = 1 * 60 * 1000;
+const useMaps2 = () => {
   const [locationsObject, setLocationObject] =
     useState<LocationsObject>(INITIAL_LOCATION);
   const [libState, setLibState] = useState<LocationLibState>({
@@ -99,7 +89,6 @@ const useMaps = () => {
   const lastTimestampRef = useRef<number>(0);
 
   // --- helper functions ---
-
   const askPermission = async (): Promise<boolean> => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     return status === "granted";
@@ -245,4 +234,4 @@ const useMaps = () => {
   };
 };
 
-export { useMaps };
+export { useMaps2 };

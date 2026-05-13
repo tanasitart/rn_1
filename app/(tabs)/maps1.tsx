@@ -3,7 +3,7 @@ import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { Colors } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useMaps2 } from "@/hooks/maps/use-maps2";
+import { useMaps1 } from "@/hooks/maps/use-maps1";
 
 import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
 const formatTime = (timestamp: number) => {
@@ -24,14 +24,14 @@ const InfoChip = ({ label, value }: { label: string; value: string }) => (
   </View>
 );
 
-const Map2 = () => {
-  const { locationsObject, libState } = useMaps2();
+const Map1 = () => {
+  const { locationsObject, libState } = useMaps1();
   const colorScheme = useColorScheme();
 
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title" style={styles.title}>
-        My Location2
+        My Location1
       </ThemedText>
 
       {libState.isLoading ? (
@@ -79,6 +79,10 @@ const Map2 = () => {
             <InfoChip
               label="Since update"
               value={`${locationsObject.countMins}m ${locationsObject.countSecs}s`}
+            />
+            <InfoChip
+              label="Diff Meters"
+              value={` ${locationsObject.diffMeters.toFixed(4)}meters`}
             />
           </View>
 
@@ -173,4 +177,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default Map2;
+export default Map1;

@@ -31,10 +31,10 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="maps"
+        name="maps1"
         options={{
-          title: 'Maps',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="map.fill" color={color} />,
+          title: 'Maps1',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
       <Tabs.Screen
