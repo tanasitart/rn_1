@@ -1,7 +1,9 @@
 import * as TaskManager from "expo-task-manager";
 import * as Location from "expo-location";
-import * as Notifications from "expo-notifications";
+//import * as Notifications from "expo-notifications";
+//import Constants from "expo-constants";
 export const LOCATION_TASK_NAME = "background-location-task";
+
 
 // เก็บ state ไว้นอก task เพราะ React ไม่ได้รันตอนนี้
 let lastSavedCoords: Location.LocationObjectCoords | null = null;
@@ -60,7 +62,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   const reason = isOverDistance
     ? `ห่างจากจุดเดิม ${distance.toFixed(0)} เมตร`
     : `ผ่านมา 15 นาทีแล้ว`;
-
+  // import ข้างในเพื่อไม่ให้ Expo Go โหลด module นี้
+  const Notifications = await import("expo-notifications");
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "📍 Location Updated",
