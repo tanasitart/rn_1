@@ -1,176 +1,116 @@
-import { StyleSheet, View, ActivityIndicator } from "react-native";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-import { useMaps2 } from "@/hooks/maps/use-maps2";
+import { LOCATION_TASK_NAME } from "@/tasks/location-task";
+import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
+import * as TaskManager from "expo-task-manager";
+import { Button, StyleSheet } from "react-native";
 
-import MapView, { PROVIDER_GOOGLE, Marker } from "react-native-maps";
-const formatTime = (timestamp: number) => {
-  if (!timestamp) return "--:--:--";
-  return new Date(timestamp).toLocaleTimeString("th-TH", {
-    timeZone: "Asia/Bangkok",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
-};
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowList: true,
+  }),
+});
 
-const InfoChip = ({ label, value }: { label: string; value: string }) => (
-  <View style={styles.chip}>
-    <ThemedText style={styles.chipLabel}>{label}</ThemedText>
-    <ThemedText style={styles.chipValue}>{value}</ThemedText>
-  </View>
-);
+const Maps2 = () => {
+  const checkTask = async () => {
+    const isRegistered =
+      await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔔 checktask",
+        body: `registered: ${isRegistered}`,
+      },
+      trigger: null,
+    });
+    console.log("Task registered:", isRegistered);
+  };
 
-const Map2 = () => {
-  const { locationsObject, libState } = useMaps2();
-  const colorScheme = useColorScheme();
+  const testNotification = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== "granted") {
+      console.log("Permission denied");
+      return;
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔔Manual โนติ",
+        body: `ขณะนี้เวลา ${new Date().toLocaleTimeString("th-TH", {
+          timeZone: "Asia/Bangkok",
+          hour12: false,
+        })} น.`,
+      },
+      trigger: null,
+    });
+    console.log("Notification sent!");
+  };
+
+  const startTracking = async () => {
+    // ขอ permission
+    const { status: fgStatus } =
+      await Location.requestForegroundPermissionsAsync();
+    console.log("Foreground permission:", fgStatus);
+    if (fgStatus !== "granted") {
+      return;
+    }
+    const { status: bgStatus } =
+      await Location.requestBackgroundPermissionsAsync();
+    console.log("Background permission:", bgStatus);
+    if (bgStatus !== "granted") {
+      return;
+    }
+        await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🔔 เริ่ม tacking",
+        body: `Foreground permission: ${fgStatus} \nBackground permission: ${bgStatus}`,
+      },
+      trigger: null,
+    });
+    /*
+    // ยิง noti ทันทีเพื่อทดสอบ
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "🟢 เริ่ม Tracking แล้ว",
+        body: `เวลา ${new Date().toLocaleTimeString("th-TH", {
+          timeZone: "Asia/Bangkok",
+          hour12: false,
+        })} น.`,
+      },
+      trigger: null,
+    });*/
+
+    // เริ่ม background task
+    try {
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.Low,
+        timeInterval: 10000,
+        distanceInterval: 0,
+        foregroundService: {
+          notificationTitle: "📍 Tracking Location",
+          notificationBody: "Running in background...",
+        },
+      });
+      console.log("startLocationUpdatesAsync success");
+    } catch (error) {
+      console.error("startLocationUpdatesAsync error:", error);
+    }
+  };
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        My Location2
-      </ThemedText>
-
-      {libState.isLoading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator
-            size="large"
-            color={Colors[colorScheme ?? "light"].tint}
-          />
-          <ThemedText style={styles.loadingText}>
-            Getting location...
-          </ThemedText>
-        </View>
-      ) : (
-        <>
-          {/* Info Bar */}
-          <View style={styles.infoBar}>
-            <InfoChip
-              label="Lat"
-              value={locationsObject.coords.latitude?.toFixed(6) ?? "—"}
-            />
-            <InfoChip
-              label="Lng"
-              value={locationsObject.coords.longitude?.toFixed(6) ?? "—"}
-            />
-            <InfoChip
-              label="Accuracy"
-              value={
-                locationsObject.coords.accuracy
-                  ? `${locationsObject.coords.accuracy.toFixed(0)}m`
-                  : "—"
-              }
-            />
-            <InfoChip
-              label="Heading"
-              value={
-                locationsObject.coords.heading
-                  ? `${locationsObject.coords.heading.toFixed(0)}°`
-                  : "—"
-              }
-            />
-            <InfoChip
-              label="Last Updated"
-              value={formatTime(locationsObject.timestamp)}
-            />
-            <InfoChip
-              label="Since update"
-              value={`${locationsObject.countMins}m ${locationsObject.countSecs}s`}
-            />
-          </View>
-
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            region={
-              locationsObject.coords.latitude &&
-              locationsObject.coords.longitude
-                ? {
-                    latitude: locationsObject.coords.latitude,
-                    longitude: locationsObject.coords.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  }
-                : {
-                    latitude: 13.736717,
-                    longitude: 100.523186,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                  }
-            }
-          >
-            {locationsObject.coords.latitude &&
-            locationsObject.coords.longitude ? (
-              <Marker
-                coordinate={{
-                  latitude: locationsObject.coords.latitude,
-                  longitude: locationsObject.coords.longitude,
-                }}
-                title="ตำแหน่งของคุณ"
-                description={`Lat ${locationsObject.coords.latitude.toFixed(6)}, Lng ${locationsObject.coords.longitude.toFixed(6)}`}
-              />
-            ) : null}
-          </MapView>
-        </>
-      )}
+      <ThemedText type="title">ทดสอบ Notification</ThemedText>
+      <Button title="กดทดสอบ Noti" onPress={testNotification} />
+      <Button title="เริ่ม Tracking" onPress={startTracking} />
+      <Button title="เช็ค Task" onPress={checkTask} />
     </ThemedView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { marginBottom: 12 },
-  centerContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: { marginTop: 12 },
-  infoBar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  chip: {
-    backgroundColor: "#1565c0",
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  chipLabel: {
-    fontSize: 10,
-    color: "#90caf9",
-    fontWeight: "600",
-    textTransform: "uppercase",
-  },
-  chipValue: {
-    fontSize: 13,
-    color: "#ffffff",
-    fontWeight: "bold",
-    fontFamily: "Courier New",
-  },
-  map: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  mapPlaceholder: {
-    flex: 1,
-    backgroundColor: "#e8f0fe",
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  mapPlaceholderText: {
-    textAlign: "center",
-    color: "#5c6bc0",
-    fontSize: 16,
-  },
+  container: { flex: 1, justifyContent: "center", padding: 16, gap: 16 },
 });
 
-export default Map2;
+export default Maps2;
