@@ -25,7 +25,8 @@ const InfoChip = ({ label, value }: { label: string; value: string }) => (
 );
 
 const Map1 = () => {
-  const { locationsObject, libState } = useMaps1();
+  const { locationsObject, libState, generateBatteryStatusDescription } =
+    useMaps1();
   const colorScheme = useColorScheme();
 
   return (
@@ -82,7 +83,17 @@ const Map1 = () => {
             />
             <InfoChip
               label="Diff Meters"
-              value={` ${locationsObject.diffMeters.toFixed(4)}meters`}
+              value={` ${locationsObject.diffMeters.toFixed(4)}m.`}
+            />
+            <InfoChip
+              label="Bat%"
+              value={`${locationsObject.batteryPercent}%`}
+            />
+            <InfoChip
+              label="isCharge"
+              value={generateBatteryStatusDescription(
+                locationsObject.isBatteryCharging,
+              )}
             />
           </View>
 

@@ -1,6 +1,10 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import * as Battery from "expo-battery";
 import * as Location from "expo-location";
+import * as SQLite from "expo-sqlite";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+//import * as sensors from "react-native-sensors";
+//import DeviceInfo from "react-native-device-info";
 interface LocationsObject {
   timestamp: number;
   mocked?: boolean;
@@ -15,12 +19,26 @@ interface LocationsObject {
   };
   countMins: string;
   countSecs: string;
-  diffMeters : number
+  diffMeters: number;
+  batteryPercent: number | null;
+  isBatteryCharging: number | null;
 }
-
 interface LocationLibState {
   isLoading: boolean;
   errorMessage: string | null;
+}
+interface InsertDatabaseParams {
+  serviceName: string;
+  isUpdateLocation: number;
+  reason: string;
+  timeStamp: number;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  diffLocation: number;
+  countDownTime: string;
+  batteryPercent: number;
+  isBatteryCharging: number;
 }
 
 const INITIAL_LOCATION: LocationsObject = {
@@ -37,19 +55,18 @@ const INITIAL_LOCATION: LocationsObject = {
   },
   countMins: "0",
   countSecs: "0",
-  diffMeters : 0,
+  diffMeters: 0,
+  batteryPercent: null,
+  isBatteryCharging: null,
 };
-
 const useMaps1 = () => {
-  // const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
-  const FIFTEEN_MINUTES_MS = 5 * 60 * 1000;
+  const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
   const [locationsObject, setLocationObject] =
     useState<LocationsObject>(INITIAL_LOCATION);
   const [libState, setLibState] = useState<LocationLibState>({
     isLoading: false,
     errorMessage: null,
   });
-
   const subscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const latestLocation = useRef<Location.LocationObjectCoords | null>(null);
   const latestTimestamp = useRef<number>(0);
@@ -63,7 +80,6 @@ const useMaps1 = () => {
       return false;
     }
   };
-
   const getDistanceInMeters = (
     from: Location.LocationObjectCoords,
     to: Location.LocationObjectCoords,
@@ -88,14 +104,93 @@ const useMaps1 = () => {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
+  const insertDatabase = async ({
+    serviceName,
+    isUpdateLocation,
+    reason,
+    timeStamp,
+    latitude,
+    longitude,
+    accuracy,
+    diffLocation,
+    countDownTime,
+    batteryPercent,
+    isBatteryCharging,
+  }: InsertDatabaseParams) => {
+    try {
+      // 1. เปิดการเชื่อมต่อด้วยการระบุชื่อไฟล์ (ถ้ายังไม่มี ไฟล์จะถูกสร้างให้อัตโนมัติ)
+      const db = await SQLite.openDatabaseAsync("rn_1.db");
+      // 2. สร้าง Table สำหรับเก็บ Log
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS rn_1foreground (
+          ID INTEGER PRIMARY KEY AUTOINCREMENT,
+          serviceName TEXT,
+          isUpdateLocation INTEGER,  
+          reason TEXT,
+          timestamp INTEGER,         
+          latitude REAL,            
+          longitude REAL,            
+          accuracy REAL,             
+          diffLocation REAL,
+          countDownTime TEXT,
+          batteryPercent REAL,
+          isBatteryCharging INTEGER
+        );
+      `);
 
-  const updateDataDisplay = useCallback(
-    (location: Location.LocationObject, force = false) => {
+      //3. Insert
+      const result = await db.runAsync(
+        `INSERT INTO rn_1foreground (
+        serviceName,
+        isUpdateLocation,
+        reason,
+        timestamp, 
+        latitude,
+        longitude,
+        accuracy,
+        diffLocation, 
+        countDownTime,
+        batteryPercent,
+        isBatteryCharging
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          serviceName,
+          isUpdateLocation,
+          reason,
+          timeStamp,
+          latitude,
+          longitude,
+          accuracy,
+          diffLocation,
+          countDownTime,
+          batteryPercent,
+          isBatteryCharging,
+        ],
+      );
+      console.log(
+        "✅ บันทึกข้อมูลลง SQLite สำเร็จ! ID ที่ได้คือ:",
+        result.lastInsertRowId,
+      );
+    } catch (error) {
+      console.log("❌ เกิดข้อผิดพลาดในการ Insert ข้อมูล:", error);
+    }
+  };
+
+  const updateDataDisplayAndUpdateLog = useCallback(
+    async (location: Location.LocationObject, force = false) => {
       //console.log("Location : ", location);
       const newCoords = { ...location.coords };
       const newTimestamp = location.timestamp || Date.now();
-
+      //const batteryPercent = await Battery.getBatteryLevelAsync();
+      const batteryPercentRounded = Math.round(
+        (await Battery.getBatteryLevelAsync()) * 100,
+      );
+      const isBatteryCharge = await Battery.getBatteryStateAsync();
+      const distanceFromLastLocation = latestLocation.current
+        ? getDistanceInMeters(latestLocation.current, newCoords)
+        : 0;
       if (!latestLocation.current || force === true) {
+        console.log("force update location because 15 minutes ");
         latestLocation.current = newCoords;
         latestTimestamp.current = newTimestamp;
         setLocationObject((prev) => ({
@@ -103,7 +198,65 @@ const useMaps1 = () => {
           timestamp: newTimestamp,
           mocked: location.mocked,
           coords: newCoords,
+          batteryPercent: batteryPercentRounded,
+          isBatteryCharging: isBatteryCharge,
         }));
+        console.log(
+          "Check Value before funtion insert \n",
+          "serviceName : ",
+          "Foreground_GPS_Service",
+          "\n",
+          "isUpdateLocation : ",
+           1,
+          "\n",
+          "reason : ",
+          "Force update due to 15 minutes no location change",
+          "\n",
+          "timeStamp : ",
+          location.timestamp,
+          "\n",
+          "latitude : ",
+          location.coords.latitude,
+          "\n",
+          "longitude : ",
+          location.coords.longitude,
+          "\n",
+          "accuracy : ",
+          location.coords.accuracy,
+          "\n",
+          "diffLocation : ",
+          distanceFromLastLocation,
+          "\n",
+          "countDownTime : ",
+          locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          "\n",
+          "batteryPercent : ",
+          batteryPercentRounded,
+          "\n",
+          "isBatteryCharging : ",
+          isBatteryCharge,
+          "\n",
+        );
+        insertDatabase({
+          serviceName: "Foreground_GPS_Service",
+          isUpdateLocation: 1,
+          reason: "Force update due to 15 minutes no location change",
+          timeStamp: location.timestamp,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          diffLocation: distanceFromLastLocation,
+          countDownTime:
+            locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          batteryPercent: batteryPercentRounded,
+          isBatteryCharging: isBatteryCharge,
+        });
         return;
       }
       const distance = getDistanceInMeters(latestLocation.current, newCoords);
@@ -112,8 +265,9 @@ const useMaps1 = () => {
         diffMeters: distance,
       }));
       console.log("distancec = ", distance, "meters");
-      if (distance >= 5) {
-        console.log(" distance over 5 meters");
+      if (distance > 200) {
+        // ถ้าเคลื่อนที่เกิน 200 เมตร ถึงจะ update location ใหม่
+        console.log(" distance over 200 meters");
         latestLocation.current = newCoords;
         latestTimestamp.current = newTimestamp;
         setLocationObject((prev) => ({
@@ -121,11 +275,140 @@ const useMaps1 = () => {
           timestamp: newTimestamp,
           mocked: location.mocked,
           coords: newCoords,
+          batteryPercent: batteryPercentRounded,
+          isBatteryCharging: isBatteryCharge,
         }));
+        console.log(
+          "Check Value before funtion insert \n",
+          "serviceName : ",
+          "Foreground_GPS_Service",
+          "\n",
+          "isUpdateLocation : ",
+          1,
+          "\n",
+          "reason : ",
+          "Update due to distance change over 200 meters",
+          "\n",
+          "timeStamp : ",
+          location.timestamp,
+          "\n",
+          "latitude : ",
+          location.coords.latitude,
+          "\n",
+          "longitude : ",
+          location.coords.longitude,
+          "\n",
+          "accuracy : ",
+          location.coords.accuracy,
+          "\n",
+          "diffLocation : ",
+          distanceFromLastLocation,
+          "\n",
+          "countDownTime : ",
+          locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          "\n",
+          "batteryPercent : ",
+          batteryPercentRounded,
+          "\n",
+          "isBatteryCharging : ",
+          isBatteryCharge,
+          "\n",
+        );
+        insertDatabase({
+          serviceName: "Foreground_GPS_Service",
+          isUpdateLocation: 1,
+          reason: "Update due to distance change over 200 meters",
+          timeStamp: location.timestamp,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          diffLocation: distanceFromLastLocation,
+          countDownTime:
+            locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          batteryPercent: batteryPercentRounded,
+          isBatteryCharging: isBatteryCharge,
+        });
+      } else {
+        // function insert status isUpdate No  reason distance under 200
+        console.log(
+          "Check Value before funtion insert \n",
+          "serviceName : ",
+          "Foreground_GPS_Service",
+          "\n",
+          "isUpdateLocation : ",
+          1,
+          "\n",
+          "reason : ",
+          "Not Update due to distance change under 200 meters",
+          "\n",
+          "timeStamp : ",
+          location.timestamp,
+          "\n",
+          "latitude : ",
+          location.coords.latitude,
+          "\n",
+          "longitude : ",
+          location.coords.longitude,
+          "\n",
+          "accuracy : ",
+          location.coords.accuracy,
+          "\n",
+          "diffLocation : ",
+          distanceFromLastLocation,
+          "\n",
+          "countDownTime : ",
+          locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          "\n",
+          "batteryPercent : ",
+          batteryPercentRounded,
+          "\n",
+          "isBatteryCharging : ",
+          isBatteryCharge,
+          "\n",
+        );
+        insertDatabase({
+          serviceName: "Foreground_GPS_Service",
+          isUpdateLocation: 0,
+          reason: "Not Update due to distance change under 200 meters",
+          timeStamp: location.timestamp,
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          accuracy: location.coords.accuracy,
+          diffLocation: distanceFromLastLocation,
+          countDownTime:
+            locationsObject.countMins.toString() +
+            "m " +
+            locationsObject.countSecs.toString() +
+            "s",
+          batteryPercent: batteryPercentRounded,
+          isBatteryCharging: isBatteryCharge,
+        });
+        console.log(" distance under 200 meters, not update location");
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+  const generateBatteryStatusDescription = (status: number | null) => {
+    if (status === 1) {
+      return "no charge";
+    } else if (status === 2) {
+      return "charging";
+    } else if (status === 3) {
+      return "full";
+    } else {
+      return "unknown";
+    }
+  };
   const formatTimeSinceLastUpdate = (milliseconds: number) => {
     const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
     const minutes = Math.floor(totalSeconds / 60);
@@ -146,20 +429,19 @@ const useMaps1 = () => {
       countSecs: seconds,
     }));
   }, []);
-
   const startGetCurrentLocation = useCallback(async () => {
     subscriptionRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 20000,
+        timeInterval: 45000,
         distanceInterval: 0,
       },
       (location) => {
-        console.log("Location already got 20 seconds");
-        updateDataDisplay(location);
+        console.log("45seconds passed subsribe new location ", location);
+        updateDataDisplayAndUpdateLog(location);
       },
     );
-  }, [updateDataDisplay]);
+  }, [updateDataDisplayAndUpdateLog]);
   const askPermissionThenGetLocation = useCallback(async () => {
     setLibState({ isLoading: true, errorMessage: null });
     try {
@@ -189,30 +471,26 @@ const useMaps1 = () => {
       subscriptionRef.current?.remove();
     };
   }, [askPermissionThenGetLocation]);
-
   // --- useEffect: อัปเดต timer ทุก 1 วินาที + เช็ค force update ---
   useEffect(() => {
     const tickEverySecond = async () => {
       // 1. อัปเดต display นับเวลา
       updateTimeSinceLastUpdate();
-
       // 2. เช็คว่าถึงเวลา force update ไหม
       if (!latestTimestamp.current) {
         return;
       }
-
       const timeSinceLastUpdateMs = Date.now() - latestTimestamp.current;
       if (timeSinceLastUpdateMs < FIFTEEN_MINUTES_MS) {
-        console.log(
+        /*console.log(
           "timeSinLastUpdateMs = ",
           timeSinceLastUpdateMs,
           "\n",
           "FITEEN_MINUTES_MS = ",
           FIFTEEN_MINUTES_MS,
-        );
+        );*/
         return;
       }
-
       // 3. ถ้าเกิน 15 นาที force get GPS เลย
       try {
         const granted = await askPermission();
@@ -222,7 +500,7 @@ const useMaps1 = () => {
         const location = await Location.getCurrentPositionAsync({
           accuracy: Location.Accuracy.BestForNavigation,
         });
-        updateDataDisplay(location, true);
+        updateDataDisplayAndUpdateLog(location, true);
       } catch (error) {
         console.error("Force update error:", error);
       }
@@ -234,58 +512,13 @@ const useMaps1 = () => {
     return () => {
       clearInterval(timerInterval);
     };
-// eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateTimeSinceLastUpdate, updateDataDisplay]);
-  /*
-  // --- useEffect: อัปเดต timer ทุก 1 วินาที ---
-  useEffect(() => {
-    updateTimeSinceLastUpdate();
-    const timerInterval = setInterval(updateTimeSinceLastUpdate, 1000);
-    return () => {
-      clearInterval(timerInterval);
-    };
-  }, [updateTimeSinceLastUpdate]);
-*/
-
-  /*
-  // --- useEffect: force อัปเดต GPS ทุก 15 นาที ---
-  useEffect(() => {
-    const forceUpdateLocation = async () => {
-      if (!latestTimestamp.current) {
-        return;
-      }
-      const timeSinceLastUpdateMs = Date.now() - latestTimestamp.current;
-      console.log("Time since last update (ms):", timeSinceLastUpdateMs);
-      console.log("FIFTEEN_MINUTES_MS:", FIFTEEN_MINUTES_MS); // เพิ่มตรงนี้
-      if (timeSinceLastUpdateMs < FIFTEEN_MINUTES_MS) {
-        return;
-      }
-      try {
-        const granted = await askPermission();
-        if (!granted) {
-          return;
-        }
-        const location = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.BestForNavigation,
-        });
-        updateDataDisplay(location, true);
-      } catch (error) {
-        console.error("Force update error:", error);
-      }
-    };
-    const forceUpdateInterval = setInterval(
-      forceUpdateLocation,
-      FIFTEEN_MINUTES_MS,
-    );
-    return () => {
-      clearInterval(forceUpdateInterval);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [latestTimestamp.current, updateDataDisplay]);
-  */
+  }, [updateTimeSinceLastUpdate, updateDataDisplayAndUpdateLog]);
+
   return {
     locationsObject,
     libState,
+    generateBatteryStatusDescription,
   };
 };
 

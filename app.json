@@ -56,7 +56,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow rn_1 to use your location"
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
