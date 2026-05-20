@@ -5,7 +5,9 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
 import { Button, StyleSheet } from "react-native";
-
+//import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -62,25 +64,13 @@ const Maps2 = () => {
     if (bgStatus !== "granted") {
       return;
     }
-        await Notifications.scheduleNotificationAsync({
+    await Notifications.scheduleNotificationAsync({
       content: {
         title: "🔔 เริ่ม tacking",
         body: `Foreground permission: ${fgStatus} \nBackground permission: ${bgStatus}`,
       },
       trigger: null,
     });
-    /*
-    // ยิง noti ทันทีเพื่อทดสอบ
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "🟢 เริ่ม Tracking แล้ว",
-        body: `เวลา ${new Date().toLocaleTimeString("th-TH", {
-          timeZone: "Asia/Bangkok",
-          hour12: false,
-        })} น.`,
-      },
-      trigger: null,
-    });*/
 
     // เริ่ม background task
     try {
@@ -98,13 +88,63 @@ const Maps2 = () => {
       console.error("startLocationUpdatesAsync error:", error);
     }
   };
+ // 📥 ฟังก์ชันแชร์ไฟล์ DB เวอร์ชันแก้ไขไร้เงา Alert
+  const exportDatabase = async () => {
+    try {
+      const dbName = "rn_1.db"; 
+      const dbFilePath = `${FileSystem.documentDirectory}SQLite/${dbName}`;
 
+      // 1. เช็คไฟล์ ถ้าไม่เจอ -> ยิง Noti ด้านบนจอ
+      const fileInfo = await FileSystem.getInfoAsync(dbFilePath);
+      if (!fileInfo.exists) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "❌ ไม่พบไฟล์ฐานข้อมูล",
+            body: "ยังไม่มีไฟล์ rn_1.db ถูกสร้างขึ้นในเครื่องนี้",
+          },
+          trigger: null,
+        });
+        return;
+      }
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(dbFilePath, {
+          mimeType: "application/x-sqlite3",
+          dialogTitle: "ส่งออกไฟล์ฐานข้อมูล rn_1.db",
+        });
+      } else {
+        // ถ้าแชร์ไม่ได้ -> ยิง Noti บอกแทน
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "⚠️ ล้มเหลว",
+            body: "เครื่องนี้ไม่รองรับระบบการแชร์ไฟล์",
+          },
+          trigger: null,
+        });
+      }
+    } catch (error: any) {
+      console.error("Export DB Error:", error);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "❌ เกิดข้อผิดพลาด",
+          body: error?.message ?? "ดึงไฟล์ฐานข้อมูลไม่ได้",
+        },
+        trigger: null,
+      });
+    }
+  };
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">ทดสอบ Notification</ThemedText>
       <Button title="กดทดสอบ Noti" onPress={testNotification} />
       <Button title="เริ่ม Tracking" onPress={startTracking} />
       <Button title="เช็ค Task" onPress={checkTask} />
+      {/* 📥 3. เพิ่มปุ่มทางออกสำหรับไฟล์ฐานข้อมูลตรงนี้ */}
+      <Button
+        title="📤 ดาวน์โหลด/แชร์ Database"
+        onPress={exportDatabase}
+        color="#4CAF50"
+      />
     </ThemedView>
   );
 };
