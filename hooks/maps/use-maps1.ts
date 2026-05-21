@@ -1,8 +1,8 @@
 import * as Battery from "expo-battery";
 import * as Location from "expo-location";
+import * as Notifications from "expo-notifications";
 import * as SQLite from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
-
 //import * as sensors from "react-native-sensors";
 //import DeviceInfo from "react-native-device-info";
 interface LocationsObject {
@@ -74,6 +74,7 @@ const useMaps1 = () => {
   const askPermission = async (): Promise<boolean> => {
     const permissionResponse =
       await Location.requestForegroundPermissionsAsync();
+      await Notifications.requestPermissionsAsync();
     if (permissionResponse.status === "granted") {
       return true;
     } else {
@@ -117,9 +118,10 @@ const useMaps1 = () => {
     batteryPercent,
     isBatteryCharging,
   }: InsertDatabaseParams) => {
+    let db: SQLite.SQLiteDatabase | null = null;
     try {
       // 1. เปิดการเชื่อมต่อด้วยการระบุชื่อไฟล์ (ถ้ายังไม่มี ไฟล์จะถูกสร้างให้อัตโนมัติ)
-      const db = await SQLite.openDatabaseAsync("rn_1.db");
+      db = await SQLite.openDatabaseAsync("rn_1_foreground.db");
       // 2. สร้าง Table สำหรับเก็บ Log
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS rn_1foreground (
@@ -138,6 +140,19 @@ const useMaps1 = () => {
         );
       `);
 
+      console.log("check value before insert \n",
+        "serviceName: ", serviceName, "\n",
+        "isUpdateLocation: ", isUpdateLocation, "\n",
+        "reason: ", reason, "\n",
+        "timeStamp: ", timeStamp, "\n",
+        "latitude: ", latitude, "\n",
+        "longitude: ", longitude, "\n",
+        "accuracy: ", accuracy, "\n",
+        "diffLocation: ", diffLocation, "\n",
+        "countDownTime: ", countDownTime, "\n",
+        "batteryPercent: ", batteryPercent, "\n",
+        "isBatteryCharging: ", isBatteryCharging, "\n",
+      )
       //3. Insert
       const result = await db.runAsync(
         `INSERT INTO rn_1foreground (
@@ -167,12 +182,31 @@ const useMaps1 = () => {
           isBatteryCharging,
         ],
       );
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "บันทึก Foreground ลงฐานข้อมูลแล้ว ",
+          body: `ID ที่ได้คือ: ${result.lastInsertRowId}`,
+        },
+        trigger: null,
+      });
       console.log(
         "✅ บันทึกข้อมูลลง SQLite สำเร็จ! ID ที่ได้คือ:",
         result.lastInsertRowId,
       );
     } catch (error) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "เกิดข้อผิดพลาดในการ Insert ข้อมูล: ",
+          body: `${error}`,
+        },
+        trigger: null,
+      });
       console.log("❌ เกิดข้อผิดพลาดในการ Insert ข้อมูล:", error);
+    } finally {
+      // ปิด database connection เมื่อเสร็จ
+      if (db) {
+        await db.closeAsync();
+      }
     }
   };
 
@@ -201,45 +235,6 @@ const useMaps1 = () => {
           batteryPercent: batteryPercentRounded,
           isBatteryCharging: isBatteryCharge,
         }));
-        console.log(
-          "Check Value before funtion insert \n",
-          "serviceName : ",
-          "Foreground_GPS_Service",
-          "\n",
-          "isUpdateLocation : ",
-           1,
-          "\n",
-          "reason : ",
-          "Force update due to 15 minutes no location change",
-          "\n",
-          "timeStamp : ",
-          location.timestamp,
-          "\n",
-          "latitude : ",
-          location.coords.latitude,
-          "\n",
-          "longitude : ",
-          location.coords.longitude,
-          "\n",
-          "accuracy : ",
-          location.coords.accuracy,
-          "\n",
-          "diffLocation : ",
-          distanceFromLastLocation,
-          "\n",
-          "countDownTime : ",
-          locationsObject.countMins.toString() +
-            "m " +
-            locationsObject.countSecs.toString() +
-            "s",
-          "\n",
-          "batteryPercent : ",
-          batteryPercentRounded,
-          "\n",
-          "isBatteryCharging : ",
-          isBatteryCharge,
-          "\n",
-        );
         insertDatabase({
           serviceName: "Foreground_GPS_Service",
           isUpdateLocation: 1,
@@ -267,7 +262,7 @@ const useMaps1 = () => {
       console.log("distancec = ", distance, "meters");
       if (distance > 200) {
         // ถ้าเคลื่อนที่เกิน 200 เมตร ถึงจะ update location ใหม่
-        console.log(" distance over 200 meters");
+        console.log("distance over 200 meters");
         latestLocation.current = newCoords;
         latestTimestamp.current = newTimestamp;
         setLocationObject((prev) => ({
@@ -278,45 +273,6 @@ const useMaps1 = () => {
           batteryPercent: batteryPercentRounded,
           isBatteryCharging: isBatteryCharge,
         }));
-        console.log(
-          "Check Value before funtion insert \n",
-          "serviceName : ",
-          "Foreground_GPS_Service",
-          "\n",
-          "isUpdateLocation : ",
-          1,
-          "\n",
-          "reason : ",
-          "Update due to distance change over 200 meters",
-          "\n",
-          "timeStamp : ",
-          location.timestamp,
-          "\n",
-          "latitude : ",
-          location.coords.latitude,
-          "\n",
-          "longitude : ",
-          location.coords.longitude,
-          "\n",
-          "accuracy : ",
-          location.coords.accuracy,
-          "\n",
-          "diffLocation : ",
-          distanceFromLastLocation,
-          "\n",
-          "countDownTime : ",
-          locationsObject.countMins.toString() +
-            "m " +
-            locationsObject.countSecs.toString() +
-            "s",
-          "\n",
-          "batteryPercent : ",
-          batteryPercentRounded,
-          "\n",
-          "isBatteryCharging : ",
-          isBatteryCharge,
-          "\n",
-        );
         insertDatabase({
           serviceName: "Foreground_GPS_Service",
           isUpdateLocation: 1,
@@ -336,45 +292,6 @@ const useMaps1 = () => {
         });
       } else {
         // function insert status isUpdate No  reason distance under 200
-        console.log(
-          "Check Value before funtion insert \n",
-          "serviceName : ",
-          "Foreground_GPS_Service",
-          "\n",
-          "isUpdateLocation : ",
-          1,
-          "\n",
-          "reason : ",
-          "Not Update due to distance change under 200 meters",
-          "\n",
-          "timeStamp : ",
-          location.timestamp,
-          "\n",
-          "latitude : ",
-          location.coords.latitude,
-          "\n",
-          "longitude : ",
-          location.coords.longitude,
-          "\n",
-          "accuracy : ",
-          location.coords.accuracy,
-          "\n",
-          "diffLocation : ",
-          distanceFromLastLocation,
-          "\n",
-          "countDownTime : ",
-          locationsObject.countMins.toString() +
-            "m " +
-            locationsObject.countSecs.toString() +
-            "s",
-          "\n",
-          "batteryPercent : ",
-          batteryPercentRounded,
-          "\n",
-          "isBatteryCharging : ",
-          isBatteryCharge,
-          "\n",
-        );
         insertDatabase({
           serviceName: "Foreground_GPS_Service",
           isUpdateLocation: 0,

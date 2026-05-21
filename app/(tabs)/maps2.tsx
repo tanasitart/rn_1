@@ -88,10 +88,10 @@ const Maps2 = () => {
       console.error("startLocationUpdatesAsync error:", error);
     }
   };
- // 📥 ฟังก์ชันแชร์ไฟล์ DB เวอร์ชันแก้ไขไร้เงา Alert
-  const exportDatabase = async () => {
+  // 📥 ฟังก์ชันแชร์ไฟล์ DB เวอร์ชันแก้ไขไร้เงา Alert
+  const exportDatabase_foreground = async () => {
+    const dbName = "rn_1_foreground.db";
     try {
-      const dbName = "rn_1.db"; 
       const dbFilePath = `${FileSystem.documentDirectory}SQLite/${dbName}`;
 
       // 1. เช็คไฟล์ ถ้าไม่เจอ -> ยิง Noti ด้านบนจอ
@@ -100,7 +100,7 @@ const Maps2 = () => {
         await Notifications.scheduleNotificationAsync({
           content: {
             title: "❌ ไม่พบไฟล์ฐานข้อมูล",
-            body: "ยังไม่มีไฟล์ rn_1.db ถูกสร้างขึ้นในเครื่องนี้",
+            body: `ยังไม่มีไฟล์ ${dbName} ถูกสร้างขึ้นในเครื่องนี้`,
           },
           trigger: null,
         });
@@ -110,7 +110,51 @@ const Maps2 = () => {
       if (isSharingAvailable) {
         await Sharing.shareAsync(dbFilePath, {
           mimeType: "application/x-sqlite3",
-          dialogTitle: "ส่งออกไฟล์ฐานข้อมูล rn_1.db",
+          dialogTitle: `ส่งออกไฟล์ฐานข้อมูล ${dbName}`,
+        });
+      } else {
+        // ถ้าแชร์ไม่ได้ -> ยิง Noti บอกแทน
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "⚠️ ล้มเหลว",
+            body: "เครื่องนี้ไม่รองรับระบบการแชร์ไฟล์",
+          },
+          trigger: null,
+        });
+      }
+    } catch (error: any) {
+      console.error("Export DB Error:", error);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "❌ เกิดข้อผิดพลาด",
+          body: error?.message ?? "ดึงไฟล์ฐานข้อมูลไม่ได้",
+        },
+        trigger: null,
+      });
+    }
+  };
+  const exportDatabase_background = async () => {
+    const dbName = "rn_1_background.db";
+    try {
+      const dbFilePath = `${FileSystem.documentDirectory}SQLite/${dbName}`;
+
+      // 1. เช็คไฟล์ ถ้าไม่เจอ -> ยิง Noti ด้านบนจอ
+      const fileInfo = await FileSystem.getInfoAsync(dbFilePath);
+      if (!fileInfo.exists) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: "❌ ไม่พบไฟล์ฐานข้อมูล",
+            body: `ยังไม่มีไฟล์ ${dbName} ถูกสร้างขึ้นในเครื่องนี้`,
+          },
+          trigger: null,
+        });
+        return;
+      }
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(dbFilePath, {
+          mimeType: "application/x-sqlite3",
+          dialogTitle: `ส่งออกไฟล์ฐานข้อมูล ${dbName}`,
         });
       } else {
         // ถ้าแชร์ไม่ได้ -> ยิง Noti บอกแทน
@@ -139,10 +183,14 @@ const Maps2 = () => {
       <Button title="กดทดสอบ Noti" onPress={testNotification} />
       <Button title="เริ่ม Tracking" onPress={startTracking} />
       <Button title="เช็ค Task" onPress={checkTask} />
-      {/* 📥 3. เพิ่มปุ่มทางออกสำหรับไฟล์ฐานข้อมูลตรงนี้ */}
       <Button
-        title="📤 ดาวน์โหลด/แชร์ Database"
-        onPress={exportDatabase}
+        title="แชร์ rn_1_foreground Database"
+        onPress={() => exportDatabase_foreground()}
+        color="#4CAF50"
+      />
+      <Button
+        title="แชร์ rn_1_background Database"
+        onPress={() => exportDatabase_background()}
         color="#4CAF50"
       />
     </ThemedView>

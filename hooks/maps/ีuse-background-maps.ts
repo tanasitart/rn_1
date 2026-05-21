@@ -37,7 +37,7 @@ const useBackgroundMaps = () => {
 
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.BestForNavigation,
-      timeInterval: 5000,
+      timeInterval: 45000,
       distanceInterval: 0,
       foregroundService: {
         notificationTitle: "📍 Tracking Location",
