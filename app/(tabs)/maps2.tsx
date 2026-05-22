@@ -180,16 +180,16 @@ const Maps2 = () => {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">ทดสอบ Notification</ThemedText>
-      <Button title="กดทดสอบ Noti" onPress={testNotification} />
-      <Button title="เริ่ม Tracking" onPress={startTracking} />
-      <Button title="เช็ค Task" onPress={checkTask} />
+      <Button title="กดเพื่อขอ Permission Noti" onPress={testNotification} />
+      <Button title="เริ่ม Tracking Background" onPress={startTracking} />
+      <Button title="เช็ค Task Background Service" onPress={checkTask} />
       <Button
-        title="แชร์ rn_1_foreground Database"
+        title="แชร์ไฟล์ rn_1_foreground Database"
         onPress={() => exportDatabase_foreground()}
         color="#4CAF50"
       />
       <Button
-        title="แชร์ rn_1_background Database"
+        title="แชร์ไฟล์ rn_1_background Database"
         onPress={() => exportDatabase_background()}
         color="#4CAF50"
       />

@@ -38,7 +38,9 @@ const useBackgroundMaps = () => {
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: 45000,
-      distanceInterval: 0,
+      //istanceInterval: 0,
+      deferredUpdatesInterval: 45000, // บอกระบบว่าไม่ต้องดองพิกัดไว้นานเกิน 45 วินาทีนะ ให้คายออกมา
+      deferredUpdatesDistance: 0,     // ไม่ต้องรอให้เคลื่อนที่ครบระยะทางก่อนคายพิกัด
       foregroundService: {
         notificationTitle: "📍 Tracking Location",
         notificationBody: "กำลัง tracking GPS อยู่เบื้องหลัง",

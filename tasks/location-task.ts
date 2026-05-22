@@ -1,7 +1,7 @@
+import * as Battery from "expo-battery";
 import * as Location from "expo-location";
 import * as SQLite from "expo-sqlite";
 import * as TaskManager from "expo-task-manager";
-import * as Battery from "expo-battery";
 
 export const LOCATION_TASK_NAME = "background-location-task";
 interface InsertDatabaseParams {
@@ -39,10 +39,10 @@ const insertDatabase = async ({
   let db: SQLite.SQLiteDatabase | null = null;
   try {
     // 1. เปิดการเชื่อมต่อด้วยการระบุชื่อไฟล์ (ถ้ายังไม่มี ไฟล์จะถูกสร้างให้อัตโนมัติ)
-    db = await SQLite.openDatabaseAsync("rn_1_foreground.db");
+    db = await SQLite.openDatabaseAsync("rn_1_background.db");
     // 2. สร้าง Table สำหรับเก็บ Log
     await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS rn_1foreground (
+        CREATE TABLE IF NOT EXISTS rn_1background (
           ID INTEGER PRIMARY KEY AUTOINCREMENT,
           serviceName TEXT,
           isUpdateLocation INTEGER,  
@@ -72,7 +72,7 @@ const insertDatabase = async ({
       )*/
     //3. Insert
     const result = await db.runAsync(
-      `INSERT INTO rn_1foreground (
+      `INSERT INTO rn_1background (
         serviceName,
         isUpdateLocation,
         reason,
@@ -100,12 +100,12 @@ const insertDatabase = async ({
       ],
     );
     await sendNotification(
-      "บันทึกลงฐานข้อมูล ID : " + result.lastInsertRowId,
+      "BGservice บันทึกลงฐานข้อมูล ID : " + result.lastInsertRowId,
       `${reason} ${getCurrentTime()}`,
     );
   } catch (error) {
     await sendNotification(
-      "บันทึกลงฐานข้อมูลไม่สำเร็จ ",
+      "BGservice บันทึกลงฐานข้อมูลไม่สำเร็จ ",
       `${reason} ${getCurrentTime()} \nError: ${error instanceof Error ? error.message : String(error)}`,
     );
   } finally {
@@ -196,10 +196,10 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-    await sendNotification(
+   /* await sendNotification(
       "✅ Update Location",
       `ห่างจากของเดิม ${distance.toFixed(0)} เมตร\n${time}\n${coordsText}`,
-    );
+    );*/
   } else if (isOverTime) {
     // เงื่อนไข 2 — ผ่านมา 15 นาที ยังไม่ update
     lastSavedCoords = newCoords;
@@ -217,10 +217,10 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-    await sendNotification(
+    /*await sendNotification(
       "⚡ Force Update Location",
       `ระยะทางไม่เกิน 200 เมตรจากจุดเดิม (${distance.toFixed(0)} เมตร)\n${time}\n${coordsText}`,
-    );
+    );*/
   } else {
     // ไม่ถึงเงื่อนไขไหน
     insertDatabase({
@@ -236,9 +236,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-    await sendNotification(
+    /*await sendNotification(
       "📌 ไม่ Update Location",
       `ห่างจากของเดิม ${distance.toFixed(0)} เมตร\n${time}\n${coordsText}`,
-    );
+    );*/
   }
 });

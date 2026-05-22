@@ -40,7 +40,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="maps2"
         options={{
-          title: 'Maps2',
+          title: 'Grant Perm&BG Service',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
         }}
       />
