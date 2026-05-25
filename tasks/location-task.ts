@@ -2,7 +2,6 @@ import * as Battery from "expo-battery";
 import * as Location from "expo-location";
 import * as SQLite from "expo-sqlite";
 import * as TaskManager from "expo-task-manager";
-
 export const LOCATION_TASK_NAME = "background-location-task";
 interface InsertDatabaseParams {
   serviceName: string;
@@ -196,10 +195,6 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-   /* await sendNotification(
-      "✅ Update Location",
-      `ห่างจากของเดิม ${distance.toFixed(0)} เมตร\n${time}\n${coordsText}`,
-    );*/
   } else if (isOverTime) {
     // เงื่อนไข 2 — ผ่านมา 15 นาที ยังไม่ update
     lastSavedCoords = newCoords;
@@ -217,10 +212,6 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-    /*await sendNotification(
-      "⚡ Force Update Location",
-      `ระยะทางไม่เกิน 200 เมตรจากจุดเดิม (${distance.toFixed(0)} เมตร)\n${time}\n${coordsText}`,
-    );*/
   } else {
     // ไม่ถึงเงื่อนไขไหน
     insertDatabase({
@@ -236,9 +227,5 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
       batteryPercent: batteryPercentRounded,
       isBatteryCharging: isBatteryCharge,
     });
-    /*await sendNotification(
-      "📌 ไม่ Update Location",
-      `ห่างจากของเดิม ${distance.toFixed(0)} เมตร\n${time}\n${coordsText}`,
-    );*/
   }
 });

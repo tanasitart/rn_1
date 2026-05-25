@@ -1,4 +1,5 @@
 import { LOCATION_TASK_NAME } from "@/tasks/location-task";
+import { activateKeepAwakeAsync } from "expo-keep-awake";
 import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as TaskManager from "expo-task-manager";
@@ -39,14 +40,21 @@ const useBackgroundMaps = () => {
       accuracy: Location.Accuracy.BestForNavigation,
       timeInterval: 45000,
       //istanceInterval: 0,
-      deferredUpdatesInterval: 45000, // บอกระบบว่าไม่ต้องดองพิกัดไว้นานเกิน 45 วินาทีนะ ให้คายออกมา
-      deferredUpdatesDistance: 0,     // ไม่ต้องรอให้เคลื่อนที่ครบระยะทางก่อนคายพิกัด
+      deferredUpdatesInterval: 45000,
+      deferredUpdatesDistance: 0,    
       foregroundService: {
         notificationTitle: "📍 Tracking Location",
         notificationBody: "กำลัง tracking GPS อยู่เบื้องหลัง",
+        killServiceOnDestroy: false,// 👈 (ถ้ามีออปชันนี้) บอกว่าห้ามฆ่า Service นี้แม้แอปหลักจะตาย
       },
     });
 
+    try {
+      await activateKeepAwakeAsync();
+      console.log("✅ Keep Awake activated");
+    } catch (err) {
+      console.error("❌ Keep Awake activation failed:", err);
+    }
     setIsTracking(true);
   };
 
@@ -56,6 +64,7 @@ const useBackgroundMaps = () => {
     if (isRegistered) {
       await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
     }
+
     setIsTracking(false);
   };
 
