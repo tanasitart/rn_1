@@ -3,6 +3,7 @@ import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as SQLite from "expo-sqlite";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { activateKeepAwakeAsync } from "expo-keep-awake";
 //import * as sensors from "react-native-sensors";
 //import DeviceInfo from "react-native-device-info";
 interface LocationsObject {
@@ -74,7 +75,7 @@ const useMaps1 = () => {
   const askPermission = async (): Promise<boolean> => {
     const permissionResponse =
       await Location.requestForegroundPermissionsAsync();
-      await Notifications.requestPermissionsAsync();
+    await Notifications.requestPermissionsAsync();
     if (permissionResponse.status === "granted") {
       return true;
     } else {
@@ -140,19 +141,42 @@ const useMaps1 = () => {
         );
       `);
 
-      console.log("check value before insert \n",
-        "serviceName: ", serviceName, "\n",
-        "isUpdateLocation: ", isUpdateLocation, "\n",
-        "reason: ", reason, "\n",
-        "timeStamp: ", timeStamp, "\n",
-        "latitude: ", latitude, "\n",
-        "longitude: ", longitude, "\n",
-        "accuracy: ", accuracy, "\n",
-        "diffLocation: ", diffLocation, "\n",
-        "countDownTime: ", countDownTime, "\n",
-        "batteryPercent: ", batteryPercent, "\n",
-        "isBatteryCharging: ", isBatteryCharging, "\n",
-      )
+      console.log(
+        "check value before insert \n",
+        "serviceName: ",
+        serviceName,
+        "\n",
+        "isUpdateLocation: ",
+        isUpdateLocation,
+        "\n",
+        "reason: ",
+        reason,
+        "\n",
+        "timeStamp: ",
+        timeStamp,
+        "\n",
+        "latitude: ",
+        latitude,
+        "\n",
+        "longitude: ",
+        longitude,
+        "\n",
+        "accuracy: ",
+        accuracy,
+        "\n",
+        "diffLocation: ",
+        diffLocation,
+        "\n",
+        "countDownTime: ",
+        countDownTime,
+        "\n",
+        "batteryPercent: ",
+        batteryPercent,
+        "\n",
+        "isBatteryCharging: ",
+        isBatteryCharging,
+        "\n",
+      );
       //3. Insert
       const result = await db.runAsync(
         `INSERT INTO rn_1foreground (
@@ -380,10 +404,18 @@ const useMaps1 = () => {
       });
     }
   }, [startGetCurrentLocation]);
-
+  const keepAwakeActivate = async () => {
+    try {
+      await activateKeepAwakeAsync();
+      console.log("useKeepAwake: บังคับเปิดหน้าจอค้างสำเร็จ ");
+    } catch (e) {
+      console.log("❌ useKeepAwake Error:", e);
+    }
+  };
   // --- useEffect: เริ่ม watch GPS ---
   useEffect(() => {
     askPermissionThenGetLocation();
+    keepAwakeActivate();
     return () => {
       subscriptionRef.current?.remove();
     };
@@ -440,4 +472,3 @@ const useMaps1 = () => {
 };
 
 export { useMaps1 };
-
